@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "protected_tcp_ports": [22],
+  "rules": [
+    {
+      "id": "vpn",
+      "interface": "eth0",
+      "listen": "192.0.2.1",
+      "target": "198.51.100.2",
+      "protocol": "tcp+udp",
+      "in_port": 443,
+      "out_port": 8443,
+      "source": "0.0.0.0/0",
+      "snat": "masquerade"
+    },
+    {
+      "id": "ping",
+      "interface": "eth0",
+      "listen": "192.0.2.1",
+      "target": "198.51.100.2",
+      "protocol": "icmp",
+      "source": "0.0.0.0/0",
+      "snat": "masquerade"
+    },
+    {
+      "id": "gre",
+      "interface": "eth0",
+      "listen": "192.0.2.1",
+      "target": "203.0.113.2",
+      "protocol": "gre",
+      "source": "203.0.113.0/24",
+      "snat": "masquerade"
+    },
+    {
+      "id": "ipv6_all",
+      "interface": "eth0",
+      "listen": "2001:db8:1::1",
+      "target": "2001:db8:2::2",
+      "protocol": "all",
+      "source": "::/0",
+      "snat": "masquerade"
+    }
+  ]
+}
