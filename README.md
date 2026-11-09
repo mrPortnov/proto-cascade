@@ -87,4 +87,6 @@ The program configures forwarding; destination routes, sshd, DNS and Docker rema
 
 The repository includes unit tests and an isolated Linux packet test. CI checks real IPv4/IPv6 packets against simulated Docker chains; this does not certify every Docker daemon version. Installation, update and reboot were additionally checked on a disposable Ubuntu 24.04 VM. See [changes](CHANGELOG.md) and [security reporting](SECURITY.md).
 
+On two Ubuntu 24.04 QEMU VMs, we verified the upgrade from 3.0.0 to 3.1.0 with Docker Engine 29.9.2 (`iptables-nft`) and three running containers. TCP and UDP forwarding, SSH `2222 → 22`, and an `ssh -L` tunnel worked over IPv4 and IPv6. Published Docker ports kept priority when forwarding rules used the same ports.
+
 This is an unofficial reimplementation originating from [anten-ka/kaskad](https://github.com/anten-ka/kaskad). The upstream MIT declaration and the absence of a full upstream license file in the audited revision are documented in [UPSTREAM-NOTICE.md](UPSTREAM-NOTICE.md).
