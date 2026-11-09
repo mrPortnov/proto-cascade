@@ -2,11 +2,11 @@
 
 [Русский](README.ru.md) · [Installation](docs/INSTALLATION.md) · [User guide](docs/USER-GUIDE.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
 
-**IPv4/IPv6 traffic forwarding for Linux, with a Russian console menu and Docker-aware iptables rules.** Choose a local interface and IP address, specify the destination machine, and review the forwarding rule before adding it.
+**IPv4/IPv6 traffic forwarding for Linux with an English or Russian console and Docker-aware iptables rules.** Choose a local interface and IP address, specify the destination machine, and review the forwarding rule before adding it.
 
-Version **3.0.0** · [MIT](LICENSE) · [Upstream attribution](UPSTREAM-NOTICE.md)
+Version **3.1.0** · [MIT](LICENSE) · [Upstream attribution](UPSTREAM-NOTICE.md)
 
-![Console menu with a demonstration SSH forwarding rule](docs/images/main-menu.png)
+![Console menu with a demonstration SSH forwarding rule](docs/images/main-menu-en.png)
 
 The illustrations use actual program formatting with synthetic documentation addresses. They are console previews, not network-test evidence.
 
@@ -37,6 +37,8 @@ sudo proto-cascade
 
 You can also [download only the installer](https://raw.githubusercontent.com/mrPortnov/proto-cascade/main/install-proto-cascade.sh), inspect it and transfer it to another VM. Run `sudo bash install-proto-cascade.sh --install` there; the project folder is not a runtime dependency. Use a pinned commit when you need an exact source version.
 
+Choose **8 Language / Язык** in the menu to save English or Russian. For English in a single invocation, run `sudo proto-cascade --lang en`. The default is Russian until a language is saved.
+
 Existing installations under the old product name need the [migration procedure](docs/MIGRATION.md) first.
 
 ## First rule
@@ -44,9 +46,9 @@ Existing installations under the old product name need the [migration procedure]
 1. Open `sudo proto-cascade` and select **1**.
 2. Enter a rule ID, choose the incoming interface, then choose its local IP.
 3. Enter the remote destination, protocol, allowed source network and any port mapping.
-4. Review the result and confirm `да`. The default answer is `нет`.
+4. Review the result and confirm `yes` in English or `да` in Russian. The default declines the change.
 
-![Numbered interface and IP address selection](docs/images/network-selection.png)
+![Numbered interface and IP address selection](docs/images/network-selection-en.png)
 
 Example: forward SSH to another machine. Replace every documentation address and `eth0` with your actual values:
 

@@ -55,6 +55,7 @@ The menu discovers the new VM's own interfaces/addresses. If transferring JSON, 
 | `/etc/proto-cascade/` | Configuration directory, mode 0700. |
 | `/etc/proto-cascade/rules.json` | Current JSON, mode 0600. |
 | `/etc/proto-cascade/rules.previous.json` | One previous saved configuration. |
+| `/etc/proto-cascade/language` | Saved console language (`ru` or `en`). Created by menu option 8 or the `language` command. |
 | `/etc/systemd/system/proto-cascade.service` | Apply at startup after network/Docker ordering. |
 | `/etc/systemd/system/proto-cascade-reconcile.service` | Check and restore owned hooks. |
 | `/etc/systemd/system/proto-cascade-reconcile.timer` | Periodic reconciliation, first countdown relative to timer activation. |
@@ -83,7 +84,7 @@ The menu discovers the new VM's own interfaces/addresses. If transferring JSON, 
 
 3. Check the list, preflight, each service and actual client connections, including Docker and administrative SSH.
 
-For a single-file installation, download the chosen updated file and run the same `--check` and `--install`. Menu item 7 reinstalls the running file's content; obtain a newer file first to upgrade. Installation replaces the command/units while preserving JSON and its previous backup. Reinstallation should not duplicate owned hooks.
+For a single-file installation, download the chosen updated file and run the same `--check` and `--install`. Menu item 7 reinstalls the running file. Installation preserves the configuration, previous backup and saved language. An upgrade from 3.0.0 keeps schema version 2 and uses Russian until a preference is saved.
 
 ## Reboot and diagnostics
 
