@@ -14,26 +14,27 @@ For example, a client in `203.0.113.0/24` connects to `192.0.2.10:2222`, and the
 sudo proto-cascade
 ```
 
-![Main menu](images/main-menu.png)
+![Main menu](images/main-menu-en.png)
 
-The console is Russian. The following table explains its options:
+The menu starts in Russian until you save a preference. Choose option **8**, then **2** for English or **1** for Russian. To override the saved language for one invocation, place `--lang en` or `--lang ru` before the command.
 
 | Item | Action and confirmation |
 | --- | --- |
-| `1` | Add: ID → interface → local IP → destination/settings → review → confirm `да`. The default is `нет` (no). |
+| `1` | Enter the ID, interface, local IP and destination settings. Review the rule and confirm `yes` or `да`. The default declines the change. |
 | `2` | Delete by ID. Entering an existing ID applies deletion immediately; an empty answer cancels. |
 | `3` | Check and apply the current configuration immediately. Preflight is part of the operation; there is no separate confirmation. |
 | `4` | Show configuration, backend, forwarding, owned chains and service state. |
-| `5` | Clear owned rules after typing the exact word `УДАЛИТЬ`. |
-| `6` | Show the previous configuration and apply it after answering `да`. |
+| `5` | Clear owned rules after typing `DELETE` in English or `УДАЛИТЬ` in Russian. |
+| `6` | Show the previous configuration and apply it after answering `yes` or `да`. |
 | `7` | Install/reinstall the command and units from the running file, then apply saved configuration. |
+| `8` | Choose the interface language and save it on this machine. |
 | `0` | Exit. |
 
 The menu requires an interactive terminal. Use CLI commands in automation or when redirecting input. Color is enabled in terminals; passing `NO_COLOR=1` to the process disables it. Use a UTF-8 terminal with Cyrillic and Unicode-box support.
 
 ## Interface and IP selection
 
-![Interface and address selection](images/network-selection.png)
+![Interface and address selection](images/network-selection-en.png)
 
 The inventory comes from `ip -j address show` on this machine. Enabled interfaces with usable addresses are listed. `lo`, names beginning `docker`, `br-`, `veth`, loopback, link-local, multicast, IPv4-mapped IPv6, tentative/DAD-failed, deprecated and expired addresses are excluded. Private IPv4 and IPv6 ULA are allowed.
 
@@ -48,7 +49,7 @@ The inventory comes from `ip -j address show` on this machine. Enabled interface
 
 The ID is unique and contains 1–32 ASCII letters, digits, `_` or `-`. Select a protocol, source network and optional port mapping. For port-based protocols, an empty incoming port means all ports of that protocol. Restrict the allowed client network with `source`.
 
-![Rule review](images/rule-review.png)
+![Rule review](images/rule-review-en.png)
 
 Confirmation validates JSON, local addresses/interfaces, routes, conflicting managers and generated kernel rules. Fix reported errors before retrying. A route existing does not prove the destination service is reachable; test from an actual client.
 
@@ -59,6 +60,9 @@ CLI operations that change rules apply without an interactive question. `clear` 
 | Command | Purpose |
 | --- | --- |
 | `sudo proto-cascade` | Menu. |
+| `sudo proto-cascade --lang en --list` | Display this invocation in English. The flag goes before the command. |
+| `sudo proto-cascade language en` | Save English for future administrative invocations. Use `ru` to save Russian. |
+| `proto-cascade --version` | Print the installed version. |
 | `sudo proto-cascade --install` | Reinstall the running version and apply configuration. |
 | `sudo proto-cascade --list` | Show configuration. |
 | `sudo proto-cascade --check` | Environment and `iptables-restore --test` preflight without applying rules. |
@@ -83,7 +87,7 @@ sudo proto-cascade remove ssh-target
 
 ## JSON configuration
 
-The main file is `/etc/proto-cascade/rules.json`. Schema version **2** is separate from product version **3.0.0**. See the complete [example](../examples/rules.example.json).
+The main file is `/etc/proto-cascade/rules.json`. Schema version **2** is separate from product version **3.1.0**. See the complete [example](../examples/rules.example.json).
 
 ```json
 {
@@ -141,6 +145,10 @@ Docker's iptables backend, including iptables-nft, is supported. Published Docke
 The timer checks roughly every 45 seconds and repairs owned hooks after changes. A Docker restart can leave an interval until the next check; run `sudo proto-cascade --reconcile` to request it explicitly. An overlapping operation receives a busy-lock error; retry after the running operation finishes. Active UFW/firewalld, another firewall backend and conflicting legacy managers are not disabled automatically.
 
 All generated tables/families receive preflight checks. A failed update restores owned rules and changed sysctl values. Linux does not provide a single atomic transaction covering all tables/families, so switching can have a brief interval. Foreign chains and global conntrack are not flushed.
+
+## Performance
+
+Version 3.1.0 skips redundant DNAT guards for explicit port mappings. With 500 TCP+UDP mappings and a match at the end of the chain, the median round-trip time for a new UDP flow on Ubuntu 24.04 in QEMU went from 5.68 to 5.42 ms for IPv4 and from 8.31 to 5.99 ms for IPv6. These figures are medians of three runs per version in Linux network namespaces. TCP throughput varied across runs. Results depend on the host, the rules and their order. The installer enables the IP forwarding needed by the configured rules and leaves system-wide performance tuning to the administrator.
 
 ## Rollback and clearing
 

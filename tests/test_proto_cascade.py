@@ -1,6 +1,6 @@
 """Offline tests: python3 -m unittest discover -s tests -v (standard library only)."""
 import copy
-from contextlib import contextmanager, redirect_stdout
+from contextlib import contextmanager, nullcontext, redirect_stdout
 import io
 import json
 from pathlib import Path
@@ -103,8 +103,7 @@ class ValidationTests(unittest.TestCase):
         forwarding = next(line for line in lines if '-j DNAT' in line)
         self.assertIn('--dport 2222', forwarding)
         self.assertIn('--to-destination 198.51.100.2:22', forwarding)
-        self.assertIn('--dport 22', lines[0])
-        self.assertIn('-j RETURN', lines[0])
+        self.assertFalse(any('-j RETURN' in line for line in lines))
 
     def test_overlap_catchall(self):
         catchall = rule(id='all', protocol='all')
@@ -167,7 +166,14 @@ class CompilerTests(unittest.TestCase):
         r = rule(listen='2001:db8:1::1', target='2001:db8:2::2')
         lines = self.m.compile_rules(config(r), 6)['proto-cascade-DNAT']
         self.assertIn('--to-destination [2001:db8:2::2]:8443', '\n'.join(lines))
-        self.assertEqual(sum('--icmpv6-type' in line for line in lines), 5)
+        self.assertFalse(any('--icmpv6-type' in line for line in lines))
+        for protocol in ('all', 'icmpv6', '58'):
+            with self.subTest(protocol=protocol):
+                broad = dict(r, protocol=protocol)
+                del broad['in_port'], broad['out_port']
+                lines = self.m.compile_rules(config(broad), 6)['proto-cascade-DNAT']
+                self.assertEqual(sum('--icmpv6-type' in line for line in lines), 5)
+                self.assertTrue(all('-j RETURN' in line for line in lines[:-1]))
         self.assertEqual(self.m.compile_rules(config(r), 4)['proto-cascade-DNAT'], [])
 
     def test_source_match_and_snat_disabled(self):
@@ -256,6 +262,34 @@ class CommandTests(unittest.TestCase):
                 patch.object(self.m, 'locked', lock), patch.object(self.m, 'install', install), \
                 patch.object(self.m, 'finish_install', finish):
             self.m.main()
+
+    def test_language_can_be_saved_and_overridden_without_touching_rules(self):
+        folder = SCRIPT.parent / ('.proto-cascade-test-' + uuid.uuid4().hex)
+        folder.mkdir()
+        self.addCleanup(shutil.rmtree, folder)
+        self.m.DIRECTORY = folder
+        self.m.CONFIG = folder / 'rules.json'
+        with patch.object(self.m, 'root'), redirect_stdout(io.StringIO()), \
+                patch.object(sys, 'argv', ['python', str(SCRIPT), 'language', 'en']):
+            self.m.main()
+        self.assertEqual(self.m.read_language(), 'en')
+        for args, expected in ((['--list'], 'Traffic forwarding'),
+                               (['--lang=ru', '--list'], 'Перенаправление трафика')):
+            output = io.StringIO()
+            with patch.object(sys, 'argv', ['python', str(SCRIPT), *args]), redirect_stdout(output):
+                self.m.main()
+            self.assertIn(expected, output.getvalue())
+        self.assertEqual(self.m.read_language(), 'en')
+        self.assertFalse(self.m.CONFIG.exists())
+
+    def test_language_argument_does_not_enter_saved_forwarding_rule(self):
+        argv = ['python', str(SCRIPT), '--lang', 'en', 'add', '--id', 'ssh', '--interface', 'ens3',
+                '--listen', '192.0.2.10', '--target', '198.51.100.20', '--protocol', 'tcp']
+        with patch.object(sys, 'argv', argv), patch.object(self.m, 'locked', nullcontext), \
+                patch.object(self.m, 'load', return_value=config()), patch.object(self.m, 'apply') as apply:
+            self.m.main()
+        self.assertEqual(self.m.LANGUAGE, 'en')
+        self.m.validate(apply.call_args.args[0])
 
 
 class Firewall:
@@ -378,6 +412,8 @@ class TransactionTests(unittest.TestCase):
 
     def test_file_write_failure_rolls_back_kernel(self):
         before = copy.deepcopy(self.fw.tables)
+        previous = b'{"version": 2, "rules": []}\r\n'
+        self.m.BACKUP.write_bytes(previous)
         real_write = self.m.atomic_write
         def broken(path, *args):
             if path == self.m.CONFIG:
@@ -387,6 +423,7 @@ class TransactionTests(unittest.TestCase):
             self.m.apply(config(rule()), persist=True)
         self.assertEqual(self.fw.tables, before)
         self.assertEqual(self.m.load()['rules'], [])
+        self.assertEqual(self.m.BACKUP.read_bytes(), previous)
 
     def test_config_failure_restores_sysctl_and_its_file(self):
         values = {'net.ipv4.ip_forward': '0'}
@@ -455,6 +492,23 @@ class TransactionTests(unittest.TestCase):
         with self.assertRaisesRegex(self.m.Error, 'чужие правила'):
             self.m.apply(config(rule()))
         self.assertEqual(self.fw.tables, before)
+
+    def test_foreign_reference_prevents_any_kernel_write(self):
+        self.m.apply(config(rule()), persist=True)
+        self.fw.tables[(4, 'filter')]['DOCKER-FORWARD'].append('-g proto-cascade-FORWARD')
+        before = copy.deepcopy(self.fw.tables)
+        commits = self.fw.commits
+        with self.assertRaisesRegex(self.m.Error, 'чужая ссылка'):
+            self.m.apply(config(rule(in_port=444)), persist=True)
+        self.assertEqual(self.fw.tables, before)
+        self.assertEqual(self.fw.commits, commits)
+
+    def test_docker_jump_with_comment_that_looks_like_an_option(self):
+        line = '-m comment --comment "-j" -j DOCKER'
+        self.fw.tables[(4, 'nat')]['PREROUTING'].append(line)
+        self.m.apply(config(rule()), persist=True)
+        self.assertEqual(self.m.snapshot(4, 'nat')['docker_nat_indices'], [1, 2])
+        self.assertEqual(self.fw.tables[(4, 'nat')]['PREROUTING'][1], line)
 
     def test_reconcile_is_quiet_when_unchanged(self):
         self.m.apply(config(rule()), persist=True)

@@ -14,6 +14,7 @@
 | TCP-порт зарезервирован для управления | Выберите другой входящий порт, например 2222 для назначения 22. Не убирайте действующий SSH-порт шлюза из защиты ради переадресации на нём. |
 | Другая операция уже выполняется | Подождите окончания текущей операции/сверки и повторите. Не удаляйте lock-файл работающего процесса. |
 | Активен UFW/firewalld или другой backend | Согласуйте конфигурацию firewall вручную. iptables-nft допустим; native Docker nftables не поддерживается. Не отключайте firewall или Docker наугад. |
+| На управляемую цепочку есть внешняя ссылка | Посмотрите ссылки `-j` и `-g` в `sudo iptables-save` или `sudo ip6tables-save`. Измените источник внешнего правила перед повторной попыткой. |
 | Обнаружена предыдущая установка | Выполните [миграцию](MIGRATION.md). Пустые старые цепочки тоже могут быть причиной отказа. |
 | Правило проверено, но соединения нет | Проверка маршрута и правил не проверяет удалённую службу. Проверьте входящий firewall/маршрут до ВМ, `source` и порт, удалённую службу/firewall, опубликованные порты Docker и обратный маршрут при `snat: none`. |
 | Соединение попадает в контейнер | Docker published ports имеют приоритет. Выберите другой входящий адрес/порт для переадресации на другую машину. |
@@ -37,6 +38,7 @@ Use `sudo proto-cascade --diagnose` and the journal command above. Redact real i
 | Management TCP port reserved | Choose another incoming port, such as 2222 to destination 22. Retain protection for the gateway's actual SSH port. |
 | Another operation is running | Wait for the running operation/reconciliation and retry. Do not delete a live process's lock file. |
 | Active UFW/firewalld or backend conflict | Coordinate firewall configuration manually. iptables-nft works; native Docker nftables is unsupported. |
+| External reference to a managed chain | Inspect `-j` and `-g` references in `sudo iptables-save` or `sudo ip6tables-save`. Update the source of the external rule before retrying. |
 | Legacy installation detected | Follow [migration](MIGRATION.md); even empty old chains can trigger the guard. |
 | Preflight passes but connection fails | Check the path/firewall to the VM, source CIDR/port, remote service/firewall, Docker published ports and return routing for `snat: none`. Preflight does not contact the target service. |
 | Connection goes to a container | Docker published ports have priority; select another incoming address/port. |

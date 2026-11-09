@@ -25,14 +25,14 @@ def run(args, **kwargs):
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30, **kwargs).stdout
 
 
-def server(family, protocol, label, ready):
+def server(family, protocol, label, ready, port=8080):
     af = socket.AF_INET if family == '4' else socket.AF_INET6
     kind = socket.SOCK_STREAM if protocol == 'tcp' else socket.SOCK_DGRAM
     with socket.socket(af, kind) as listener:
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if af == socket.AF_INET6:
             listener.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
-        listener.bind(('0.0.0.0' if family == '4' else '::', 8080))
+        listener.bind(('0.0.0.0' if family == '4' else '::', int(port)))
         if protocol == 'tcp':
             listener.listen()
         Path(ready).touch()
@@ -148,12 +148,14 @@ def integration():
                 destination = f'[{target}]:8080' if ':' in target else target + ':8080'
                 ns('router', [binary, '-t', 'nat', '-A', 'DOCKER', '-i', 'r-c', '-d', listen,
                               '-p', 'tcp', '--dport', '28080', '-j', 'DNAT', '--to-destination', destination])
-            for role in ('target', 'container'):
+            for role, transports, port in (('target', ('tcp', 'udp'), 8080),
+                                           ('container', ('tcp', 'udp'), 8080),
+                                           ('router', ('tcp',), 22)):
                 for family in (4, 6):
-                    for protocol in ('tcp', 'udp'):
+                    for protocol in transports:
                         ready = Path(directory) / f'{role}-{family}-{protocol}.ready'
                         processes.append(subprocess.Popen(['ip', 'netns', 'exec', names[role], sys.executable,
-                            str(HERE), 'server', str(family), protocol, role, str(ready)],
+                            str(HERE), 'server', str(family), protocol, role, str(ready), str(port)],
                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE))
                         deadline = time.monotonic() + 45
                         while not ready.exists():
@@ -177,6 +179,7 @@ def integration():
                 for protocol in ('tcp', 'udp'):
                     probe(family, protocol, 8080, 'target ' + snat)
                 probe(family, 'tcp', 28080, 'container ' + source)
+                probe(family, 'tcp', 22, 'router ' + source)
                 host = '192.0.2.1' if family == 4 else '2001:db8:1::1'
                 ns('client', ['ping', f'-{family}', '-c', '1', '-W', '2', host])
             # Simulate Docker recreating its user chain, then repair references.
@@ -192,7 +195,7 @@ def integration():
             if docker_fingerprint() != before:
                 raise AssertionError('Docker rules were modified.')
             print('PASS: IPv4/IPv6 TCP, UDP, ICMP; port mapping; SNAT on a second interface;')
-            print('      Docker DNAT priority; reconciliation; clear preserves Docker rules.')
+            print('      Docker DNAT priority; gateway TCP 22; reconciliation and clear.')
         finally:
             for process in processes:
                 process.terminate()
