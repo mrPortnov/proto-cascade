@@ -146,6 +146,10 @@ The timer checks roughly every 45 seconds and repairs owned hooks after changes.
 
 All generated tables/families receive preflight checks. A failed update restores owned rules and changed sysctl values. Linux does not provide a single atomic transaction covering all tables/families, so switching can have a brief interval. Foreign chains and global conntrack are not flushed.
 
+## Performance
+
+Version 3.1.0 skips redundant DNAT guards for explicit port mappings. With 500 TCP+UDP mappings and a match at the end of the chain, the median round-trip time for a new UDP flow on Ubuntu 24.04 in QEMU went from 5.68 to 5.42 ms for IPv4 and from 8.31 to 5.99 ms for IPv6. These figures are medians of three runs per version in Linux network namespaces. TCP throughput varied across runs. Results depend on the host, the rules and their order. The installer enables the IP forwarding needed by the configured rules and leaves system-wide performance tuning to the administrator.
+
 ## Rollback and clearing
 
 `rules.previous.json` stores **one** previous configuration when the manager saves changes. `rollback` validates and applies it; it is not a version archive. Changed interfaces/routes can require editing the backup before restoration.
